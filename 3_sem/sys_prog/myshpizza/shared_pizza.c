@@ -44,13 +44,13 @@ int Cook (int semid, struct sembuf* command,char * string, int i, int N, int* n_
 {
     while(1)
     {
-        printf("In cook %d n_pizza == %d\n", i, *n_pizza);
+        //printf("In cook %d n_pizza == %d\n", i, *n_pizza);
+        V(semid, command, i);
         if ((*n_pizza) == N)
             break;
-        V(semid, command, i);
         printf("Cook %d: puts \"%s\" \n", i, words[i]);
         P(semid, command, queue[(*q_index) % 7]);
-        printf("In cook %d q_index == %d\n", i, *q_index);
+        //printf("In cook %d q_index == %d\n", i, *q_index);
 
         (*q_index)++;
     }
@@ -70,6 +70,11 @@ int Chief(int semid,struct sembuf* command, char* string, int N, int* n_pizza, i
         *q_index = 0;
         P(semid, command, 0);
     }
+    P(semid, command, 0);
+    P(semid, command, 1);
+    P(semid, command, 2);
+    P(semid, command, 3);
+    P(semid, command, 4);
 
     return 0;
 }
@@ -77,15 +82,25 @@ int main(int argc, char** argv)
 {
     int N = atoi(argv[1]);
 
-    int shmid = shmget(IPC_PRIVATE, 2048, 0777);
-	if (shmid < 0){
+    int shmid1 = shmget(IPC_PRIVATE, 12, 0777);
+	if (shmid1 < 0){
+		perror("Cannot create shared memory\n");
+		return errno;
+	}
+    int shmid2 = shmget(IPC_PRIVATE, 4, 0777);
+	if (shmid2 < 0){
+		perror("Cannot create shared memory\n");
+		return errno;
+	}
+    int shmid3 = shmget(IPC_PRIVATE, 4, 0777);
+	if (shmid3 < 0){
 		perror("Cannot create shared memory\n");
 		return errno;
 	}
 
-	char* string = shmat(shmid, NULL, 0);
-    int* q_index = shmat(shmid, NULL, 0);
-    int*  n_pizza = shmat(shmid, NULL,0);
+	char* string = shmat(shmid1, NULL, 0);
+    int* q_index = shmat(shmid2, NULL, 0);
+    int* n_pizza = shmat(shmid3, NULL,0);
 
 	if (string == NULL){
 		perror("Cannot attach memory\n");
@@ -111,7 +126,7 @@ int main(int argc, char** argv)
     struct sembuf command = {0, 0 ,0};
 
     P(semid, &command, 0);
-    printf("hiiiu\n");
+    
     for (int i = 0; i < 5; i++)
     {
         if (!fork())
@@ -145,7 +160,15 @@ int main(int argc, char** argv)
 		return errno;
 	}
 
-	if (shmctl(shmid, IPC_RMID, 0) < 0){
+	if (shmctl(shmid1, IPC_RMID, 0) < 0){
+		perror("Cannot delete shared memory\n");
+		return  errno;
+	}
+    if (shmctl(shmid2, IPC_RMID, 0) < 0){
+		perror("Cannot delete shared memory\n");
+		return  errno;
+	}
+    if (shmctl(shmid3, IPC_RMID, 0) < 0){
 		perror("Cannot delete shared memory\n");
 		return  errno;
 	}
